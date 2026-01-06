@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Regional Dashboard Summary</h1>
+<p class="muted">A quick visual summary of regional performance.</p>
+
+<!-- ================= SUMMARY CHARTS ================= -->
+<div class="grid-2">
+  <div class="card">
+    <h2 class="card-title">Overall Score Distribution</h2>
+    <div class="chart-wrap">
+      <canvas id="bandChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-title">Average Dimension Scores</h2>
+    <div class="chart-wrap">
+      <canvas id="dimensionChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="card-title">Country Overall Scores</h2>
+  <p class="muted" style="margin-top:-6px;">Click a bar to open the country detail page.</p>
+  <div class="chart-wrap chart-tall">
+    <canvas id="countryChart"></canvas>
+  </div>
+</div>
+
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in summary %}
+      <tr>
+        <td>{{ row.metric }}</td>
+        <td>{{ row.value }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<a href="/countries" class="btn-primary">View Countries</a>
+
+<script>
+  // ===== Theme-matched Chart.js colors (reads CSS variables) =====
+  function cssVar(name, fallback) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  const THEME = {
+    primary: cssVar("--primary", "#1e3a8a"),
+    accent: cssVar("--accent", "#0ea5e9"),
+    bgSoft: cssVar("--bg-soft", "#eef2f7"),
+    textMain: cssVar("--text-main", "#1f2937"),
+    textMuted: cssVar("--text-muted", "#6b7280"),
+    borderSoft: cssVar("--border-soft", "#e5e7eb"),
+  };
+
+  const BAND_COLORS = {
+    "Very Strong": cssVar("--band-very-strong", "#1aa179"),
+    "Strong": cssVar("--band-strong", "#4caf50"),
+    "Moderate": cssVar("--band-moderate", "#ffc107"),
+    "Weak": cssVar("--band-weak", "#dc3545"),
+    "N/A": cssVar("--band-na", "#b9c2cc"),
+  };
+
+  const bandCounts = {{ band_counts | tojson }};
+  const dimAvgs = {{ dimension_avgs | tojson }};
+  const countryScores = {{ country_scores | tojson }};
+
+  Chart.defaults.font.family = '"Segoe UI", Arial, sans-serif';
+  Chart.defaults.color = THEME.textMain;
+      Chart.defaults.plugins.tooltip = {
+        backgroundColor: "#0f172a",
+        titleFont: { size: 13, weight: "600" },
+        bodyFont: { size: 12 },
+        padding: 12,
+        cornerRadius: 10
+      };
+      Chart.defaults.plugins.legend.labels = {
+        usePointStyle: true,
+        boxWidth: 8,
+        padding: 14
+      };
+      Chart.defaults.animation.duration = 600;
+
+  // Donut
+  const bandCanvas = document.getElementById("bandChart");
+  if (bandCanvas) {
+    const labels = Object.keys(bandCounts);
+    new Chart(bandCanvas, {
+      type: "doughnut",
+      data: {
+        labels,
+        datasets: [{
+          data: labels.map(k => bandCounts[k] ?? 0),
+          backgroundColor: labels.map(k => BAND_COLORS[k] || BAND_COLORS["N/A"]),
+          borderColor: THEME.bgSoft,
+          borderWidth: 2,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 14, color: THEME.textMuted } },
+          tooltip: { backgroundColor: "#111827", titleColor: "#fff", bodyColor: "#fff" }
+        },
+        cutout: "62%"
+      }
+    });
+  }
+
+  // Dimension bars
+  const dimCanvas = document.getElementById("dimensionChart");
+  if (dimCanvas) {
+    const labels = Object.keys(dimAvgs);
+    new Chart(dimCanvas, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          data: labels.map(k => dimAvgs[k]),
+          backgroundColor: THEME.accent,
+          borderRadius: 10
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: "#111827", titleColor: "#fff", bodyColor: "#fff" } },
+        scales: {
+          y: { beginAtZero: true, suggestedMax: 100, grid: { color: THEME.borderSoft }, ticks: { color: THEME.textMuted } },
+          x: { grid: { display: false }, ticks: { color: THEME.textMuted } }
+        }
+      }
+    });
+  }
+
+  // Country bars
+  const countryCanvas = document.getElementById("countryChart");
+  if (countryCanvas) {
+    const labels = countryScores.map(x => x.name || x.code || "");
+    const values = countryScores.map(x => x.score);
+    const colors = countryScores.map(x => BAND_COLORS[x.band] || BAND_COLORS["N/A"]);
+
+    const chart = new Chart(countryCanvas, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{ data: values, backgroundColor: colors, borderRadius: 10 }]
+      },
+      options: {
+        indexAxis: "y",
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: "#111827", titleColor: "#fff", bodyColor: "#fff" } },
+        scales: {
+          x: { beginAtZero: true, suggestedMax: 100, grid: { color: THEME.borderSoft }, ticks: { color: THEME.textMuted } },
+          y: { grid: { display: false }, ticks: { color: THEME.textMuted } }
+        }
+      }
+    });
+
+    countryCanvas.onclick = (evt) => {
+      const points = chart.getElementsAtEventForMode(evt, "nearest", { intersect: true }, true);
+      if (!points.length) return;
+      const idx = points[0].index;
+      const url = countryScores[idx]?.url;
+      if (url) window.location.href = url;
+    };
+  }
+</script>
+
+{% endblock %}
