@@ -1,120 +1,67 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>{{ country.Country }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+{% block content %}
 
-<nav class="navbar">
-  <div class="nav-title">Pacific Dashboard</div>
-  <div class="nav-links">
-    <a href="/">Overview</a>
-    <a href="/countries">Countries</a>
-  </div>
-</nav>
+<a href="/countries" class="btn-primary">← Back to Map</a>
 
-<div class="container">
-<a href="/countries" class="btn-primary" style="margin-bottom:16px; display:inline-block;">← Back to Map</a>
+<h1>{{ country.Country }}</h1>
 
-
-  <h1>{{ country.Country }}</h1>
-
-  <!-- ================= OVERALL SCORE ================= -->
-  <div class="card">
-    <h2>
-      Overall Score: {{ country["Overall Score"] }}
-      <span class="badge">{{ country["Score Band"] }}</span>
-    </h2>
-  </div>
-
-  <!-- ================= DIMENSIONS ================= -->
-  <div class="card">
-    <h2>Dimension Scores</h2>
-    <ul>
-      <li><strong>Dim 1: PFM Assessments:</strong> {{ dims["Dim 1: PFM Assessments"] }}</li>
-      <li><strong>Dim 2: Climate Risk:</strong> {{ dims["Dim 2: Climate Risk"] }}</li>
-      <li><strong>Dim 3: Fiscal Risk Mgmt:</strong> {{ dims["Dim 3: Fiscal Risk Mgmt"] }}</li>
-      <li><strong>Dim 4: Finance Mobilisation:</strong> {{ dims["Dim 4: Finance Mobilisation"] }}</li>
-      <li><strong>Dim 5: Capabilities:</strong> {{ dims["Dim 5: Capabilities"] }}</li>
-    </ul>
-  </div>
-
-  <!-- ================= PEFA ASSESSMENTS (FIELD / DETAILS) ================= -->
-  <div class="card">
-    <h2>PEFA Assessments</h2>
-
-    {% if pefa %}
-      {% for p in pefa %}
-        <table>
-          <tr>
-            <th style="width: 320px;">Field</th>
-            <th>Details</th>
-          </tr>
-
-          <tr>
-            <td><strong># PEFA Assessments</strong></td>
-            <td>{{ p.assessments }}</td>
-          </tr>
-          <tr>
-            <td><strong>Latest PEFA Year</strong></td>
-            <td>{{ p.latest_year }}</td>
-          </tr>
-          <tr>
-            <td><strong>PFM Reform Plan</strong></td>
-            <td>{{ p.reform_plan }}</td>
-          </tr>
-          <tr>
-            <td><strong>Other PFM & Climate Finance Assessments</strong></td>
-            <td>{{ p.other_assessments }}</td>
-          </tr>
-          <tr>
-            <td><strong>Latest PFM Activities (PFTAC Country Workplans FY 25/26)</strong></td>
-            <td>{{ p.latest_pfm_activities }}</td>
-          </tr>
-          <tr>
-            <td><strong>PEFA Report/Portal Link</strong></td>
-            <td>
-              {% if p.link %}
-                <a href="{{ p.link }}" target="_blank" rel="noopener noreferrer">View Report</a>
-              {% else %}
-                —
-              {% endif %}
-            </td>
-          </tr>
-        </table>
-      {% endfor %}
-    {% else %}
-      <p>No PEFA assessments recorded for this country.</p>
-    {% endif %}
-  </div>
-
-  <!-- ================= GOOD PRACTICES ================= -->
-  <div class="card">
-    <h2>Good Practices</h2>
-
-    {% if practices %}
-    <table>
-      <tr>
-        <th>Practice Area</th>
-        <th>Description</th>
-        <th>Replicability</th>
-      </tr>
-
-      {% for g in practices %}
-      <tr>
-        <td>{{ g.area }}</td>
-        <td>{{ g.description }}</td>
-        <td>{{ g.replicability }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-    {% else %}
-      <p>No good practices recorded for this country.</p>
-    {% endif %}
-  </div>
-
+<div class="card">
+  <h2>
+    Overall Score: {{ country["Overall Score"] }}
+    <span class="badge">{{ country["Score Band"] }}</span>
+  </h2>
 </div>
 
-</body>
-</html>
+<div class="card">
+  <h2>Dimension Scores</h2>
+  <ul>
+    {% for k, v in dims.items() %}
+      <li><strong>{{ k }}:</strong> {{ v }}</li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="card">
+  <h2>PEFA Assessments</h2>
+  {% if pefa %}
+    {% for p in pefa %}
+    <table>
+      <tr><th>Field</th><th>Details</th></tr>
+      <tr><td># PEFA Assessments</td><td>{{ p.assessments }}</td></tr>
+      <tr><td>Latest PEFA Year</td><td>{{ p.latest_year }}</td></tr>
+      <tr><td>PFM Reform Plan</td><td>{{ p.reform_plan }}</td></tr>
+      <tr><td>Other Assessments</td><td>{{ p.other_assessments }}</td></tr>
+      <tr>
+        <td>Report</td>
+        <td>
+          {% if p.link %}
+            <a href="{{ p.link }}" target="_blank">View Report</a>
+          {% else %} — {% endif %}
+        </td>
+      </tr>
+    </table>
+    {% endfor %}
+  {% else %}
+    <p>No PEFA assessments recorded.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Good Practices</h2>
+  {% if practices %}
+  <table>
+    <tr><th>Area</th><th>Description</th><th>Replicability</th></tr>
+    {% for g in practices %}
+    <tr>
+      <td>{{ g.area }}</td>
+      <td>{{ g.description }}</td>
+      <td>{{ g.replicability }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+    <p>No good practices recorded.</p>
+  {% endif %}
+</div>
+
+{% endblock %}
