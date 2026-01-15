@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Pacific PFM Regional Coordination Dashboard</h1>
+<p class="muted">A quick visual summary of regional performance.</p>
+
+<!-- Summary Info Card -->
+<div class="summary-grid">
+  <div class="card">
+    <h2>Summary Information</h2>
+    <ul>
+      <li>Total Countries: <strong>{{ summary_metrics.countries_total }}</strong></li>
+      <li>Average Overall Score: <strong>{{ summary_metrics.avg_overall }}</strong></li>
+      <li>PEFA Assessments: <strong>{{ summary_metrics.pefa_count }}</strong></li>
+      <li>Reform Plans: <strong>{{ summary_metrics.reform_plan_count }}</strong></li>
+      <li>GCF Readiness: <strong>{{ summary_metrics.gcf_count }}</strong></li>
+      <li>Good Practices Documented: <strong>{{ summary_metrics.good_practices }}</strong></li>
+    </ul>
+  </div>
+</div>
+
+<!-- Donut + Dimension Charts -->
+<div class="grid-2">
+  <div class="card">
+    <h2 class="card-title">Overall Score Distribution</h2>
+    <div class="chart-wrap">
+      <canvas id="bandChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-title">Average Dimension Scores</h2>
+    <div class="chart-wrap">
+      <canvas id="dimensionChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Country Score Chart -->
+<div class="card">
+  <h2 class="card-title">Country Overall Scores</h2>
+  <p class="muted">Click a bar to open the country detail page.</p>
+  <div class="chart-wrap chart-tall">
+    <canvas id="countryChart"></canvas>
+  </div>
+</div>
+
+<!-- TA Area Chart -->
+<div class="card">
+  <h2 class="card-title">Technical Assistance Areas</h2>
+  <p class="muted">Select an area to view country scores.</p>
+
+  <select id="taSelect">
+    {% for col in ta_area_data.keys() %}
+      <option value="{{ col }}">{{ col }}</option>
+    {% endfor %}
+  </select>
+
+  <div class="chart-wrap chart-tall">
+    <canvas id="taChart"></canvas>
+  </div>
+</div>
+
+<a href="/countries" class="btn-primary">View Countries</a>
+
+<!-- Chart.js + Data -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const BAND_ORDER = ["Very Strong", "Strong", "Moderate", "Weak", "N/A"];
+  const BAND_COLORS = {
+    "Very Strong": "#1aa179",
+    "Strong": "#4caf50",
+    "Moderate": "#ffc107",
+    "Weak": "#dc3545",
+    "N/A": "#b9c2cc"
+  };
+
+  const bandCounts = {{ band_counts | tojson }};
+  const dimensionAvgs = {{ dimension_avgs | tojson }};
+  const countryData = {{ country_scores | tojson }};
+  const taAreaData = {{ ta_area_data | tojson }};
+</script>
+
+<script>
+  // Donut Chart
+  new Chart(document.getElementById("bandChart"), {
+    type: "doughnut",
+    data: {
+      labels: BAND_ORDER,
+      datasets: [{
+        data: BAND_ORDER.map(b => bandCounts[b] || 0),
+        backgroundColor: BAND_ORDER.map(b => BAND_COLORS[b]),
+        borderWidth: 2
+      }]
+    },
+    options: {
+      cutout: "60%",
+      plugins: {
+        legend: { position: "bottom" }
+      }
+    }
+  });
+
+  // Dimension Bar
+  new Chart(document.getElementById("dimensionChart"), {
+    type: "bar",
+    data: {
+      labels: Object.keys(dimensionAvgs),
+      datasets: [{
+        data: Object.values(dimensionAvgs),
+        backgroundColor: "#0ea5e9",
+        borderRadius: 10
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, max: 100 } }
+    }
+  });
+
+  // Country Score Chart
+  const countryChart = new Chart(document.getElementById("countryChart"), {
+    type: "bar",
+    data: {
+      labels: countryData.map(c => c.name),
+      datasets: [{
+        data: countryData.map(c => c.score),
+        backgroundColor: countryData.map(c => BAND_COLORS[c.band]),
+        borderRadius: 10
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  document.getElementById("countryChart").onclick = e => {
+    const p = countryChart.getElementsAtEventForMode(e, "nearest", { intersect: true }, true);
+    if (p.length) window.location.href = countryData[p[0].index].url;
+  };
+
+  // TA Area Chart
+  let taChart;
+  const taCtx = document.getElementById("taChart");
+
+  function renderTAChart(area) {
+    const rows = taAreaData[area] || [];
+
+    if (taChart) taChart.destroy();
+
+    taChart = new Chart(taCtx, {
+      type: "bar",
+      data: {
+        labels: rows.map(r => r.name),
+        datasets: [{
+          label: area,
+          data: rows.map(r => r.score),
+          backgroundColor: "#3b82f6",
+          borderRadius: 10
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+
+  const taSelect = document.getElementById("taSelect");
+  renderTAChart(taSelect.value);
+
+  taSelect.addEventListener("change", () => {
+    renderTAChart(taSelect.value);
+  });
+</script>
+
+<!-- Styles -->
+<style>
+  .summary-grid {
+    display: flex;
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  .summary-grid .card {
+    flex: 1;
+  }
+  .summary-grid ul {
+    padding-left: 1rem;
+  }
+  .summary-grid li {
+    margin: 0.3rem 0;
+  }
+  select#taSelect {
+    padding: 0.4rem;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+</style>
+
+{% endblock %}
