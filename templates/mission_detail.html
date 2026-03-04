@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mission {{ mission["ID"] }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-title">Pacific PFM Regional Coordination Dashboard</div>
+  <div class="nav-links">
+    <a href="/">Overview</a>
+    <a href="/countries">Countries</a>
+    <a href="/joint-missions">Joint Missions</a>
+  </div>
+</nav>
+
+<div class="container">
+  <a href="/joint-missions" class="btn-primary">← Back to Joint Missions</a>
+
+  <h1>{{ mission["Mission Title"] }}</h1>
+  <p class="muted"><strong>ID:</strong> {{ mission["ID"] }}</p>
+
+  <div class="card">
+    <h2 class="card-title">Mission Details</h2>
+    <table class="table">
+      <thead>
+        <tr><th>Field</th><th>Value</th></tr>
+      </thead>
+      <tbody>
+        {% for k, v in mission.items() %}
+          {% if k != "_type" %}
+            <tr>
+              <td>{{ k }}</td>
+              <td>{{ v }}</td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>

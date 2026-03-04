@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Joint Missions</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-title">Pacific PFM Regional Coordination Dashboard</div>
+  <div class="nav-links">
+    <a href="/">Overview</a>
+    <a href="/countries">Countries</a>
+    <a class="active" href="/joint-missions">Joint Missions</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>Joint Missions</h1>
+  <p class="muted">Tracking joint missions and regional coordination activities.</p>
+
+  <!-- Summary Statistics (auto-calculated) -->
+  <div class="card">
+    <div class="summary-stats">
+      <div class="stat">
+        <div class="stat-label">Total Missions Tracked</div>
+        <div class="stat-value">{{ total }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Completed</div>
+        <div class="stat-value">{{ status_counts.get('Completed',0) }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">In Progress</div>
+        <div class="stat-value">{{ status_counts.get('In Progress',0) }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">In Planning / Confirmed</div>
+        <div class="stat-value">{{ status_counts.get('In Planning / Confirmed',0) }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Not Started</div>
+        <div class="stat-value">{{ status_counts.get('Not Started',0) }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Deferred</div>
+        <div class="stat-value">{{ status_counts.get('Deferred',0) }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2 class="card-title">Missions by Status</h2>
+      <div class="chart-wrap">
+        <canvas id="statusChart"></canvas>
+      </div>
+      <p class="muted">Click a mission ID below to view full details.</p>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title">Mission List</h2>
+      <div class="table-scroll">
+        <table class="table table-compact">
+          <thead>
+            <tr>
+              <th style="width: 110px;">ID</th>
+              <th>Mission Title</th>
+              <th style="width: 120px;">Quarter</th>
+              <th style="width: 160px;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in missions %}
+              {% if r._type == "quarter" %}
+                <tr class="quarter-row">
+                  <td colspan="4">{{ r.label }}</td>
+                </tr>
+              {% else %}
+                <tr class="mission-row" data-mission-id="{{ r['ID'] }}">
+                  <td class="mono"><a href="#" class="mission-link" data-mission-id="{{ r['ID'] }}">{{ r["ID"] }}</a></td>
+                  <td>{{ r.get("Mission Title","") }}</td>
+                  <td>{{ r.get("Quarter","") }}</td>
+                  <td>{{ r.get("Status","") }}</td>
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Side panel -->
+<div id="panelBackdrop" class="panel-backdrop" aria-hidden="true"></div>
+<aside id="missionPanel" class="side-panel" aria-hidden="true">
+  <div class="side-panel-header">
+    <div>
+      <div class="side-panel-title" id="panelTitle">Mission</div>
+      <div class="muted" id="panelSubtitle"></div>
+    </div>
+    <button class="icon-btn" id="closePanel" aria-label="Close">✕</button>
+  </div>
+
+  <div class="side-panel-body" id="panelBody">
+    <div class="muted">Select a mission to view details.</div>
+  </div>
+</aside>
+
+{# ✅ Build legends in Jinja (valid syntax), then pass to JS safely #}
+{% set quarterLegendHTML %}
+  {% for q in quarters %}
+    <div class="legend-row">
+      <strong>{{ q.get("Quarter","—") }}</strong> — {{ q.get("Description","—") }}
+    </div>
+  {% endfor %}
+{% endset %}
+
+{% set ragLegendHTML %}
+  {% for r in rag_legends %}
+    <div class="legend-row">
+      <strong>{{ r.get("RAG","—") }}</strong> — {{ r.get("Meaning","—") }}
+    </div>
+  {% endfor %}
+{% endset %}
+
+<script>
+  const statusCounts = {{ status_counts | tojson }};
+  const labels = Object.keys(statusCounts);
+  const values = Object.values(statusCounts);
+
+  const ctx = document.getElementById('statusChart');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values }] },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+
+  const panel = document.getElementById('missionPanel');
+  const backdrop = document.getElementById('panelBackdrop');
+  const closeBtn = document.getElementById('closePanel');
+  const panelTitle = document.getElementById('panelTitle');
+  const panelSubtitle = document.getElementById('panelSubtitle');
+  const panelBody = document.getElementById('panelBody');
+
+  function openPanel() {
+    panel.classList.add('open');
+    backdrop.classList.add('show');
+  }
+
+  function closePanel() {
+    panel.classList.remove('open');
+    backdrop.classList.remove('show');
+  }
+
+  backdrop.addEventListener('click', closePanel);
+  closeBtn.addEventListener('click', closePanel);
+
+  // ✅ Safe JS strings (no broken quoting)
+  const quarterLegendHTML = {{ quarterLegendHTML | tojson }};
+  const ragLegendHTML = {{ ragLegendHTML | tojson }};
+
+  async function loadMission(id) {
+    panelBody.innerHTML = '<div class="muted">Loading…</div>';
+    openPanel();
+
+    try {
+      const res = await fetch(`/api/mission/${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error('Not found');
+
+      const data = await res.json();
+
+      panelTitle.textContent = data.ID ? `Mission ${data.ID}` : 'Mission';
+      panelSubtitle.textContent = data["Mission Title"] || '';
+
+      const esc = (s) => String(s ?? '')
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;');
+
+      function field(label, value) {
+        return `
+          <div class="mission-row">
+            <div class="mission-label">${esc(label)}</div>
+            <div class="mission-value">${esc(value || "—")}</div>
+          </div>
+        `;
+      }
+
+      panelBody.innerHTML = `
+        <div class="mission-section">
+          <h3>Mission Info</h3>
+          ${field("Mission Title", data["Mission Title"])}
+          ${field("Mission ID", data["ID"])}
+          ${field("Mission Type", data["Mission Type"])}
+          ${field("PFM Area", data["PFM Area"])}
+          ${field("Countries Involved", data["Countries Involved"])}
+          ${field("Lead Organisation", data["Lead Organisation"])}
+          ${field("Partner Organisations", data["Partner Organisations"])}
+        </div>
+
+        <div class="mission-section">
+          <h3>Timeline</h3>
+          ${field("Quarter", data["Quarter"])}
+          ${field("Planned Date", data["Planned Date"])}
+          ${field("Actual / Revised Date", data["Actual / Revised Date"])}
+          ${field("Status", data["Status"])}
+          ${field("RAG Status", data["RAG Status"])}
+        </div>
+
+        <div class="mission-section">
+          <h3>Outputs & Deliverables</h3>
+          ${field("Objectives", data["Objectives"])}
+          ${field("Key Outputs / Deliverables", data["Key Outputs / Deliverables"])}
+        </div>
+
+        <div class="mission-section">
+          <h3>Follow-up</h3>
+          ${field("Notes / Follow-up Actions", data["Notes / Follow-up Actions"])}
+        </div>
+
+        <div class="mission-section">
+          <h3>Quarter Legend</h3>
+          ${quarterLegendHTML || '<div class="muted">—</div>'}
+        </div>
+
+        <div class="mission-section">
+          <h3>RAG Status Legend</h3>
+          ${ragLegendHTML || '<div class="muted">—</div>'}
+        </div>
+      `;
+
+    } catch (e) {
+      panelBody.innerHTML = '<div class="muted">Could not load mission details.</div>';
+    }
+  }
+
+  document.querySelectorAll('.mission-link').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = a.getAttribute('data-mission-id');
+      if (id) loadMission(id);
+    });
+  });
+</script>
+
+</body>
+</html>

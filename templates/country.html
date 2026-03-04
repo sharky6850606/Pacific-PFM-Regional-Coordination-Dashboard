@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="/countries" class="btn-primary">← Back to Map</a>
+
+<h1>{{ country.Country }}</h1>
+
+<div class="card">
+  <h2>
+    Overall Score: {{ country["Overall Score"] }}
+    <span class="badge">{{ country["Score Band"] }}</span>
+  </h2>
+</div>
+
+<div class="card">
+  <h2>Pillar Scores</h2>
+  <table class="table pillar-table">
+    <thead>
+      <tr><th>Pillar</th><th style="width: 140px;">Score</th></tr>
+    </thead>
+    <tbody>
+      {% for k, v in dims.items() %}
+        <tr>
+          <td class="pillar-name">{{ k }}</td>
+          <td class="pillar-score">{{ v if v else '—' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>PEFA Assessments</h2>
+  {% if pefa %}
+    {% for p in pefa %}
+    <table>
+      <tr><th>Field</th><th>Details</th></tr>
+      <tr><td># PEFA Assessments</td><td>{{ p.assessments }}</td></tr>
+      <tr><td>Latest PEFA Year</td><td>{{ p.latest_year }}</td></tr>
+      <tr><td>PFM Reform Plan</td><td>{{ p.reform_plan }}</td></tr>
+      <tr><td>Other Assessments</td><td>{{ p.other_assessments }}</td></tr>
+      <tr><td>Latest PFM Activities (PFTAC Country Workplans FY 25/26)</td><td>{{ p.latest_pfm_activities }}</td></tr>
+      <tr>
+        <td>Report</td>
+        <td>
+          {% if p.link %}
+            <a href="{{ p.link }}" target="_blank">View Report</a>
+          {% else %} — {% endif %}
+        </td>
+      </tr>
+
+      <tr>
+        <td>Workplan</td>
+        <td>
+          {% if workplan_link %}
+            <a href="{{ workplan_link }}" target="_blank">Open workplan</a>
+          {% else %} — {% endif %}
+        </td>
+      </tr>
+    </table>
+    {% endfor %}
+  {% else %}
+    <p>No PEFA assessments recorded.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Good Practices</h2>
+  <details open>
+    <summary>Show / hide good practices</summary>
+    <div class="table-scroll" style="margin-top:12px;">
+      {% if practices %}
+      <table class="table table-compact">
+        <thead>
+          <tr><th style="width: 220px;">Area</th><th>Description</th><th style="width: 140px;">Replicability</th></tr>
+        </thead>
+        <tbody>
+        {% for g in practices %}
+          <tr>
+            <td>{{ g.area }}</td>
+            <td>{{ g.description }}</td>
+            <td>{{ g.replicability }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div style="padding:12px;" class="muted">No good practices recorded.</div>
+      {% endif %}
+    </div>
+  </details>
+</div>
+
+<div class="card">
+  <h2>PEFA Score Methodology</h2>
+  <details>
+    <summary>Show scoring methodology</summary>
+    <div class="methodology-wrap">
+      <table class="table table-compact">
+      <thead><tr><th>Item</th><th>Detail</th></tr></thead>
+      <tbody>
+        {% for r in methodology %}
+          <tr><td>{{ r.get('Item','') }}</td><td>{{ r.get('Detail','') }}</td></tr>
+        {% endfor %}
+      </tbody>
+      </table>
+    </div>
+  </details>
+</div>
+
+{% endblock %}
